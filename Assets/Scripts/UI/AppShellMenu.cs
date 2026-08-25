@@ -87,7 +87,7 @@ namespace NinetyMinutes.UI
             var frame = UiFactory.Box(_main.transform, "TVFrame", Vector2.zero, new Vector2(900, 720), Bezel);
             UiFactory.Title(frame, "OnAir", "● ON AIR   90 МИНУТ", 22, new Vector2(0, -24), Accent);
             UiFactory.Title(frame, "Title", "90 МИНУТ", 64, new Vector2(0, -70), TextCol);
-            UiFactory.Title(frame, "Sub", "Sprint 3 · vertical slice", 22, new Vector2(0, -150), Dim);
+            UiFactory.Title(frame, "Sub", "Последний матч · 3D", 22, new Vector2(0, -150), Dim);
 
             float y = -20;
             UiFactory.Button(frame, "BtnNew", "Новая игра", new Vector2(0, y), new Vector2(420, 64), OnNewGame);

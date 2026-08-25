@@ -36,7 +36,7 @@ namespace NinetyMinutes.Core
             root.AddComponent<WorldController>();
             root.AddComponent<AppShellMenu>();
 
-            Debug.Log("[90 минут] Sprint 3 bootstrap OK — full slice spine.");
+            Debug.Log("[90 минут] Bootstrap OK — 3D world + slice spine.");
         }
     }
 }

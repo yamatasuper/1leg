@@ -12,10 +12,12 @@ namespace NinetyMinutes.Art
 
         public static Sprite LocationStreet => Load("Art/Locations/bg_street");
         public static Sprite LocationLocker => Load("Art/Locations/bg_locker");
+        public static Sprite LocationPitch => Load("Art/Locations/bg_pitch");
         public static Sprite PortraitBardin => Load("Art/Portraits/portrait_bardin");
         public static Sprite PortraitGlock => Load("Art/Portraits/portrait_glock");
         public static Sprite PortraitSokol => Load("Art/Portraits/portrait_sokol");
         public static Sprite PortraitCoach => Load("Art/Portraits/portrait_coach");
+        public static Sprite PortraitPen => Load("Art/Portraits/portrait_pen");
         public static Sprite SpritePlayer => Load("Art/Characters/sprite_player");
         public static Sprite MatchAction => Load("Art/Match/match_panel_action");
         public static Sprite MatchGoal => Load("Art/Match/match_panel_goal");
@@ -25,6 +27,7 @@ namespace NinetyMinutes.Art
             if (string.IsNullOrEmpty(speaker)) return PortraitBardin;
             var s = speaker.Trim().ToLowerInvariant();
             if (s.Contains("глок") || s.Contains("серёг") || s.Contains("серег")) return PortraitGlock;
+            if (s.Contains("пень") || s.Contains("олег")) return PortraitPen;
             if (s.Contains("сокол")) return PortraitSokol;
             if (s.Contains("виктор") || s.Contains("семён") || s.Contains("семен") || s.Contains("тренер"))
                 return PortraitCoach;
@@ -59,6 +62,11 @@ namespace NinetyMinutes.Art
                 Debug.LogWarning($"[90 минут] Art missing: Resources/{resourcesPath}");
 
             return sprite;
+        }
+
+        public static Texture2D Tex(Sprite sprite)
+        {
+            return sprite != null ? sprite.texture : null;
         }
     }
 }

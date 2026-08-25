@@ -230,7 +230,7 @@ namespace NinetyMinutes.Core
         {
             var playerPos = Vector2.zero;
             var player = FindObjectOfType<PlayerController>();
-            if (player != null) playerPos = player.transform.position;
+            if (player != null) playerPos = player.GroundPos;
 
             if (WorldController.Instance != null)
                 LocationId = WorldController.Instance.CurrentLocationId;
