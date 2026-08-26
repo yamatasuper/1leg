@@ -91,16 +91,17 @@ namespace NinetyMinutes.World
             if (GameSession.Instance != null)
                 GameSession.Instance.LocationId = locationId;
 
-            var toLocker = locationId == "loc_locker";
-            if (_locker != null) _locker.SetActive(toLocker);
-            if (_street != null) _street.SetActive(!toLocker);
-            if (_lockerLamp != null) _lockerLamp.enabled = toLocker;
-            ApplyLocationAtmosphere(toLocker);
+            // Must run before the player is placed: the spawn is an offset from the location root, so
+            // a missing root would drop the player into empty space at the world origin.
+            EnsureLocationBuilt(locationId);
+            ApplyLocationVisibility();
+            ApplyLocationAtmosphere(locationId == "loc_locker");
+            EnsureLocationRenders(locationId);
 
             if (_player != null)
             {
                 _player.gameObject.SetActive(true);
-                _player.Place(spawn ?? new Vector2(0f, -2.2f));
+                _player.Place(SanitizeSpawn(locationId, spawn ?? new Vector2(0f, -2.2f)));
             }
 
             if (_camRig != null)
@@ -109,7 +110,10 @@ namespace NinetyMinutes.World
                 _camRig.Snap();
             }
 
-            UpdateHud();
+            if (SliceDirector.Instance != null)
+                RefreshSpine(SliceDirector.Instance.Phase);
+            else
+                UpdateHud();
         }
 
         public void RefreshSpine(SlicePhase phase)
@@ -145,6 +149,21 @@ namespace NinetyMinutes.World
             if (go != null) go.SetActive(on);
         }
 
+        /// <summary>
+        /// Spawn points are location-local. Saves written before that rule was enforced hold world
+        /// coordinates, which would drop the player outside the room with an empty view.
+        /// </summary>
+        static Vector2 SanitizeSpawn(string locationId, Vector2 spawn)
+        {
+            var locker = locationId == "loc_locker";
+            const float margin = 2.4f;
+            var halfW = (locker ? WorldSceneFactory.LockerW : WorldSceneFactory.StreetW) * 0.5f - margin;
+            var halfD = (locker ? WorldSceneFactory.LockerD : WorldSceneFactory.StreetD) * 0.5f - margin;
+            if (Mathf.Abs(spawn.x) <= halfW && Mathf.Abs(spawn.y) <= halfD)
+                return spawn;
+            return new Vector2(0f, -1.5f);
+        }
+
         void EnsureWorldLoaded()
         {
             if (_persistentRoot != null && _locker != null && _street != null) return;
@@ -157,9 +176,60 @@ namespace NinetyMinutes.World
 
             BindSceneObjects();
             BuildHud();
+            ApplyLocationVisibility();
+        }
 
-            if (_locker != null) _locker.SetActive(true);
-            if (_street != null) _street.SetActive(false);
+        /// <summary>
+        /// Shows whichever location the player currently stands in. Rebinding can happen at any moment,
+        /// including from <see cref="RefreshSpine"/> straight after a travel, so this must never assume
+        /// the run is still in the locker — the locations sit 48 metres apart and the wrong one being
+        /// active leaves the camera staring at nothing.
+        /// </summary>
+        void ApplyLocationVisibility()
+        {
+            var toLocker = CurrentLocationId == "loc_locker";
+            if (_locker != null) _locker.SetActive(toLocker);
+            if (_street != null) _street.SetActive(!toLocker);
+            if (_lockerLamp != null) _lockerLamp.enabled = toLocker;
+        }
+
+        void EnsureLocationBuilt(string locationId)
+        {
+            var locker = locationId == "loc_locker";
+            if ((locker ? _locker : _street) != null) return;
+
+            Debug.LogWarning($"[90 минут] Локация '{locationId}' не найдена — собираю заново.");
+            if (locker) WorldSceneFactory.BuildLocker();
+            else WorldSceneFactory.BuildStreet();
+            BindSceneObjects();
+
+            if ((locker ? _locker : _street) == null)
+                Debug.LogError($"[90 минут] Локацию '{locationId}' собрать не удалось — игрок окажется в пустоте.");
+        }
+
+        /// <summary>
+        /// Location prefabs are baked without materials, so a bind that skipped the repaint pass leaves
+        /// the player standing in an empty world. Run the repaint again rather than shipping the void.
+        /// </summary>
+        void EnsureLocationRenders(string locationId)
+        {
+            var root = locationId == "loc_locker" ? _locker : _street;
+            if (root == null || HasVisibleGeometry(root)) return;
+
+            Debug.LogWarning($"[90 минут] В локации '{locationId}' нечего отрисовать — перекрашиваю геометрию.");
+            WorldGeometryFix.Stabilize(_locker, _street);
+            CharacterVisualFix.Dress(_player, _locker, _street);
+        }
+
+        static bool HasVisibleGeometry(GameObject root)
+        {
+            foreach (var mr in root.GetComponentsInChildren<MeshRenderer>())
+            {
+                if (mr.enabled && mr.sharedMaterial != null)
+                    return true;
+            }
+
+            return false;
         }
 
         void BindSceneObjects()

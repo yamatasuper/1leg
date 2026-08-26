@@ -64,16 +64,27 @@ namespace NinetyMinutes.World
             _rb.velocity = new Vector3(v.x, 0f, v.z);
         }
 
-        public Vector2 GroundPos => new Vector2(transform.position.x, transform.position.z);
+        /// <summary>
+        /// Position relative to the active location origin — the same space <see cref="Place"/> expects.
+        /// </summary>
+        public Vector2 LocalGroundPos
+        {
+            get
+            {
+                var local = transform.position - Origin;
+                return new Vector2(local.x, local.z);
+            }
+        }
 
         public void Place(Vector2 spawn)
         {
-            var origin = WorldController.Instance != null
-                ? WorldController.Instance.ActiveOrigin
-                : Vector3.zero;
-            transform.position = origin + new Vector3(spawn.x, 0f, spawn.y);
+            transform.position = Origin + new Vector3(spawn.x, 0f, spawn.y);
             if (_rb != null) _rb.velocity = Vector3.zero;
         }
+
+        static Vector3 Origin => WorldController.Instance != null
+            ? WorldController.Instance.ActiveOrigin
+            : Vector3.zero;
 
         void TryInteract()
         {
