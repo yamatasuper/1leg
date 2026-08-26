@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using NinetyMinutes.Art;
 using NinetyMinutes.Core;
 using NinetyMinutes.Save;
 using NinetyMinutes.World;
@@ -12,11 +13,11 @@ namespace NinetyMinutes.UI
     {
         public static AppShellMenu Instance { get; private set; }
 
-        static readonly Color Bg = new Color(0.02f, 0.03f, 0.04f, 0.97f);
-        static readonly Color Bezel = new Color(0.1f, 0.12f, 0.16f, 1f);
-        static readonly Color Accent = new Color(0.95f, 0.92f, 0.35f, 1f);
-        static readonly Color TextCol = new Color(1f, 1f, 0.95f, 1f);
-        static readonly Color Dim = new Color(0.7f, 0.72f, 0.65f, 1f);
+        static readonly Color Cream = new Color(0.96f, 0.93f, 0.86f, 1f);
+        static readonly Color Mustard = new Color(0.78f, 0.58f, 0.22f, 1f);
+        static readonly Color Teal = new Color(0.62f, 0.7f, 0.68f, 1f);
+        static readonly Color Dim = new Color(0.72f, 0.7f, 0.62f, 1f);
+        static readonly Color Wash = new Color(0.07f, 0.06f, 0.05f, 0.72f);
 
         Canvas _canvas;
         GameObject _main;
@@ -83,53 +84,94 @@ namespace NinetyMinutes.UI
 
         void BuildMain()
         {
-            _main = UiFactory.Panel(_canvas.transform, "MainMenu", Bg).gameObject;
-            var frame = UiFactory.Box(_main.transform, "TVFrame", Vector2.zero, new Vector2(900, 720), Bezel);
-            UiFactory.Title(frame, "OnAir", "● ON AIR   90 МИНУТ", 22, new Vector2(0, -24), Accent);
-            UiFactory.Title(frame, "Title", "90 МИНУТ", 64, new Vector2(0, -70), TextCol);
-            UiFactory.Title(frame, "Sub", "Последний матч · 3D", 22, new Vector2(0, -150), Dim);
+            _main = UiFactory.Panel(_canvas.transform, "MainMenu", new Color(0.08f, 0.08f, 0.07f, 1f)).gameObject;
 
-            float y = -20;
-            UiFactory.Button(frame, "BtnNew", "Новая игра", new Vector2(0, y), new Vector2(420, 64), OnNewGame);
-            y -= 80;
-            var cont = UiFactory.Button(frame, "BtnContinue", "Продолжить", new Vector2(0, y), new Vector2(420, 64), OnContinue);
+            var art = UiFactory.FullImage(_main.transform, "Art", ArtCatalog.MenuKey, new Color(0.18f, 0.16f, 0.12f));
+            art.gameObject.AddComponent<MenuKenBurns>();
+
+            var washGo = new GameObject("Wash", typeof(RectTransform), typeof(Image));
+            washGo.transform.SetParent(_main.transform, false);
+            var washRt = washGo.GetComponent<RectTransform>();
+            washRt.anchorMin = new Vector2(0f, 0f);
+            washRt.anchorMax = new Vector2(0.46f, 1f);
+            washRt.offsetMin = Vector2.zero;
+            washRt.offsetMax = Vector2.zero;
+            washGo.GetComponent<Image>().color = Wash;
+            washGo.GetComponent<Image>().raycastTarget = false;
+
+            var portrait = ArtCatalog.PortraitBardin;
+            if (portrait != null)
+            {
+                var p = UiFactory.Box(_main.transform, "Portrait", new Vector2(620f, -40f), new Vector2(520f, 720f), Color.clear);
+                p.anchorMin = p.anchorMax = new Vector2(1f, 0.5f);
+                p.pivot = new Vector2(1f, 0.5f);
+                p.anchoredPosition = new Vector2(-36f, -20f);
+                var img = p.GetComponent<Image>();
+                img.sprite = portrait;
+                img.color = new Color(1f, 1f, 1f, 0.92f);
+                img.preserveAspect = true;
+                img.raycastTarget = false;
+            }
+
+            var frame = UiFactory.LeftColumn(_main.transform, "TVFrame", 640f, 72f);
+            UiFactory.Headline(frame, "OnAir", "ПОСЛЕДНИЙ МАТЧ", 22, new Vector2(0, -72), new Vector2(600, 36), Mustard, TextAnchor.UpperLeft);
+            UiFactory.Headline(frame, "Title", "90 МИНУТ", 78, new Vector2(0, -108), new Vector2(620, 96), Cream, TextAnchor.UpperLeft);
+            UiFactory.Hairline(frame, "Rule", new Vector2(0, 0), new Vector2(220, 3), Mustard)
+                .rectTransform.anchorMin = new Vector2(0f, 1f);
+            var rule = frame.Find("Rule") as RectTransform;
+            if (rule != null)
+            {
+                rule.anchorMin = rule.anchorMax = new Vector2(0f, 1f);
+                rule.pivot = new Vector2(0f, 1f);
+                rule.anchoredPosition = new Vector2(0f, -214f);
+            }
+
+            UiFactory.Headline(frame, "Sub", "Алексей Бардин · «Торпедо» · Прибрежье", 22, new Vector2(0, -232), new Vector2(600, 40), Teal, TextAnchor.UpperLeft);
+            UiFactory.Headline(frame, "Line", "Река за воротами не спрашивает, сколько тебе лет.", 20, new Vector2(0, -272), new Vector2(560, 48), Dim, TextAnchor.UpperLeft);
+
+            float y = -20f;
+            UiFactory.GhostButton(frame, "BtnNew", "Новая игра", new Vector2(0, y), new Vector2(420, 58), OnNewGame);
+            y -= 70;
+            var cont = UiFactory.GhostButton(frame, "BtnContinue", "Продолжить", new Vector2(0, y), new Vector2(420, 58), OnContinue);
             cont.name = "BtnContinue";
-            y -= 80;
-            UiFactory.Button(frame, "BtnSettings", "Настройки", new Vector2(0, y), new Vector2(420, 64), () => ShowSettings(fromPause: false));
-            y -= 80;
-            UiFactory.Button(frame, "BtnQuit", "Выход", new Vector2(0, y), new Vector2(420, 64), OnQuit);
+            y -= 70;
+            UiFactory.GhostButton(frame, "BtnSettings", "Настройки", new Vector2(0, y), new Vector2(420, 58), () => ShowSettings(fromPause: false));
+            y -= 70;
+            UiFactory.GhostButton(frame, "BtnQuit", "Выход", new Vector2(0, y), new Vector2(420, 58), OnQuit);
 
-            _status = UiFactory.Footer(frame, "Status", "", 20, Dim);
+            _status = UiFactory.Footer(frame, "Status", "", 18, Dim);
+            _status.alignment = TextAnchor.MiddleLeft;
+            _status.rectTransform.anchoredPosition = new Vector2(8f, 36f);
         }
 
         void BuildPause()
         {
-            _pause = UiFactory.Panel(_canvas.transform, "PauseMenu", new Color(0, 0, 0, 0.72f)).gameObject;
-            var frame = UiFactory.Box(_pause.transform, "TVFrame", Vector2.zero, new Vector2(760, 680), Bezel);
-            UiFactory.Title(frame, "Title", "ПАУЗА", 48, new Vector2(0, -40), TextCol);
+            _pause = UiFactory.Panel(_canvas.transform, "PauseMenu", new Color(0.04f, 0.03f, 0.02f, 0.72f)).gameObject;
+            var frame = UiFactory.PaperCard(_pause.transform, "TVFrame", Vector2.zero, new Vector2(640, 680));
+            UiFactory.Headline(frame, "Title", "ПАУЗА", 42, new Vector2(0, -28), new Vector2(560, 56), Cream, TextAnchor.UpperCenter);
 
-            float y = 80;
-            UiFactory.Button(frame, "Resume", "Продолжить", new Vector2(0, y), new Vector2(400, 58), () => SetPause(false));
-            y -= 72;
-            UiFactory.Button(frame, "Save", "Сохранить", new Vector2(0, y), new Vector2(400, 58), () => OpenSlots(load: false));
-            y -= 72;
-            UiFactory.Button(frame, "Load", "Загрузить", new Vector2(0, y), new Vector2(400, 58), () => OpenSlots(load: true));
-            y -= 72;
-            UiFactory.Button(frame, "Settings", "Настройки", new Vector2(0, y), new Vector2(400, 58), () => ShowSettings(fromPause: true));
-            y -= 72;
-            UiFactory.Button(frame, "ToTitle", "В главное меню", new Vector2(0, y), new Vector2(400, 58), ConfirmToTitle);
-            y -= 72;
-            UiFactory.Button(frame, "Quit", "Выход", new Vector2(0, y), new Vector2(400, 58), ConfirmQuit);
+            float y = 140;
+            UiFactory.GhostButton(frame, "Resume", "Продолжить", new Vector2(0, y), new Vector2(400, 54), () => SetPause(false));
+            y -= 66;
+            UiFactory.GhostButton(frame, "Save", "Сохранить", new Vector2(0, y), new Vector2(400, 54), () => OpenSlots(load: false));
+            y -= 66;
+            UiFactory.GhostButton(frame, "Load", "Загрузить", new Vector2(0, y), new Vector2(400, 54), () => OpenSlots(load: true));
+            y -= 66;
+            UiFactory.GhostButton(frame, "Settings", "Настройки", new Vector2(0, y), new Vector2(400, 54), () => ShowSettings(fromPause: true));
+            y -= 66;
+            UiFactory.GhostButton(frame, "ToTitle", "В главное меню", new Vector2(0, y), new Vector2(400, 54), ConfirmToTitle);
+            y -= 66;
+            UiFactory.GhostButton(frame, "Quit", "Выход", new Vector2(0, y), new Vector2(400, 54), ConfirmQuit);
             _pause.SetActive(false);
         }
 
         void BuildSettings()
         {
-            _settings = UiFactory.Panel(_canvas.transform, "Settings", new Color(0, 0, 0, 0.8f)).gameObject;
-            var frame = UiFactory.Box(_settings.transform, "TVFrame", Vector2.zero, new Vector2(820, 780), Bezel);
-            UiFactory.Title(frame, "Title", "НАСТРОЙКИ", 42, new Vector2(0, -36), TextCol);
+            _settings = UiFactory.Panel(_canvas.transform, "Settings", new Color(0.04f, 0.03f, 0.02f, 0.78f)).gameObject;
+            var frame = UiFactory.PaperCard(_settings.transform, "TVFrame", Vector2.zero, new Vector2(720, 820));
+            UiFactory.Headline(frame, "Title", "НАСТРОЙКИ", 36, new Vector2(0, -24), new Vector2(640, 48), Cream, TextAnchor.UpperCenter);
 
-            float y = 120;
+            float y = 200;
             AddCycleButton(frame, "Графика", () =>
             {
                 var s = GameSession.Instance.Settings;
@@ -168,19 +210,19 @@ namespace NinetyMinutes.UI
             AddCycleButton(frame, "Voice", () => CycleVolume(v => GameSession.Instance.Settings.VolVoice = v, () => GameSession.Instance.Settings.VolVoice, "Голос"), ref y);
             AddCycleButton(frame, "Crowd", () => CycleVolume(v => GameSession.Instance.Settings.VolCrowd = v, () => GameSession.Instance.Settings.VolCrowd, "Толпа"), ref y);
 
-            UiFactory.Button(frame, "Back", "Назад", new Vector2(0, -320), new Vector2(360, 56), HideSettings);
+            UiFactory.GhostButton(frame, "Back", "Назад", new Vector2(0, -340), new Vector2(360, 54), HideSettings);
             _settings.SetActive(false);
         }
 
         void AddCycleButton(Transform parent, string name, Func<string> cycle, ref float y)
         {
-            var btn = UiFactory.Button(parent, name, RefreshSettingLabel(name), new Vector2(0, y), new Vector2(520, 52), null);
+            var btn = UiFactory.GhostButton(parent, name, RefreshSettingLabel(name), new Vector2(0, y), new Vector2(520, 50), null);
             btn.onClick.AddListener(() =>
             {
                 var t = btn.GetComponentInChildren<Text>();
                 if (t != null) t.text = cycle();
             });
-            y -= 58;
+            y -= 50;
         }
 
         string RefreshSettingLabel(string name)
@@ -213,9 +255,9 @@ namespace NinetyMinutes.UI
 
         void BuildSlots()
         {
-            _slots = UiFactory.Panel(_canvas.transform, "Slots", new Color(0, 0, 0, 0.85f)).gameObject;
-            var frame = UiFactory.Box(_slots.transform, "TVFrame", Vector2.zero, new Vector2(900, 820), Bezel);
-            UiFactory.Title(frame, "Title", "СОХРАНЕНИЯ", 40, new Vector2(0, -36), TextCol);
+            _slots = UiFactory.Panel(_canvas.transform, "Slots", new Color(0.04f, 0.03f, 0.02f, 0.82f)).gameObject;
+            var frame = UiFactory.PaperCard(_slots.transform, "TVFrame", Vector2.zero, new Vector2(860, 820));
+            UiFactory.Headline(frame, "Title", "СОХРАНЕНИЯ", 36, new Vector2(0, -24), new Vector2(760, 48), Cream, TextAnchor.UpperCenter);
             // Content rebuilt each open
             var list = new GameObject("List", typeof(RectTransform));
             list.transform.SetParent(frame, false);
@@ -224,7 +266,7 @@ namespace NinetyMinutes.UI
             rt.anchorMax = new Vector2(0.5f, 0.5f);
             rt.anchoredPosition = new Vector2(0, -20);
             rt.sizeDelta = new Vector2(760, 620);
-            UiFactory.Button(frame, "Back", "Назад", new Vector2(0, -360), new Vector2(300, 52), () =>
+            UiFactory.GhostButton(frame, "Back", "Назад", new Vector2(0, -360), new Vector2(300, 52), () =>
             {
                 _slots.SetActive(false);
                 if (_pauseOpen) _pause.SetActive(true);
@@ -234,18 +276,18 @@ namespace NinetyMinutes.UI
 
         void BuildModal()
         {
-            _modal = UiFactory.Panel(_canvas.transform, "Modal", new Color(0, 0, 0, 0.88f)).gameObject;
-            var frame = UiFactory.Box(_modal.transform, "TVFrame", Vector2.zero, new Vector2(700, 320), Bezel);
-            _modalText = UiFactory.Label(frame, "Text", "", 26, TextAnchor.MiddleCenter, TextCol);
+            _modal = UiFactory.Panel(_canvas.transform, "Modal", new Color(0.04f, 0.03f, 0.02f, 0.82f)).gameObject;
+            var frame = UiFactory.PaperCard(_modal.transform, "TVFrame", Vector2.zero, new Vector2(680, 300));
+            _modalText = UiFactory.Label(frame, "Text", "", 24, TextAnchor.MiddleCenter, Cream);
             _modalText.rectTransform.offsetMin = new Vector2(30, 90);
             _modalText.rectTransform.offsetMax = new Vector2(-30, -70);
-            UiFactory.Button(frame, "Ok", "OK", new Vector2(-120, -100), new Vector2(200, 52), () =>
+            UiFactory.GhostButton(frame, "Ok", "Да", new Vector2(-120, -96), new Vector2(200, 50), () =>
             {
                 _modal.SetActive(false);
                 _modalConfirm?.Invoke();
                 _modalConfirm = null;
             });
-            UiFactory.Button(frame, "Cancel", "Отмена", new Vector2(120, -100), new Vector2(200, 52), () =>
+            UiFactory.GhostButton(frame, "Cancel", "Нет", new Vector2(120, -96), new Vector2(200, 50), () =>
             {
                 _modal.SetActive(false);
                 _modalConfirm = null;
@@ -255,15 +297,8 @@ namespace NinetyMinutes.UI
 
         void BuildGameplayStub()
         {
-            _gameplayStub = UiFactory.Panel(_canvas.transform, "GameplayStub", new Color(0.07f, 0.09f, 0.11f, 1f)).gameObject;
+            _gameplayStub = UiFactory.Panel(_canvas.transform, "GameplayStub", new Color(0.07f, 0.06f, 0.05f, 1f)).gameObject;
             _gameplayStub.transform.SetAsFirstSibling();
-            var frame = UiFactory.Box(_gameplayStub.transform, "Board", Vector2.zero, new Vector2(1000, 420), Bezel);
-            UiFactory.Title(frame, "Title", "ИГРА · STUB", 44, new Vector2(0, -36), Accent);
-            UiFactory.Label(frame, "Body",
-                    "Sprint 0 готов.\n\nEsc — пауза (Сохранить / Загрузить / Настройки).\nНовая игра создаёт автосейв.\nСейвы: " +
-                    Application.persistentDataPath + "/saves",
-                    24, TextAnchor.MiddleCenter, TextCol)
-                .rectTransform.offsetMin = new Vector2(40, 40);
             _gameplayStub.SetActive(false);
         }
 
@@ -285,8 +320,8 @@ namespace NinetyMinutes.UI
             if (_status != null)
             {
                 _status.text = SaveService.Instance != null && SaveService.Instance.HasAnySave()
-                    ? "Есть сохранения"
-                    : "Нет сохранений";
+                    ? "Есть сохранения · можно продолжить"
+                    : "Нет сохранений · начни с раздевалки";
             }
         }
 
@@ -297,7 +332,7 @@ namespace NinetyMinutes.UI
             var has = SaveService.Instance != null && SaveService.Instance.HasAnySave();
             btn.interactable = has;
             var t = btn.GetComponentInChildren<Text>();
-            if (t != null) t.color = has ? TextCol : Dim;
+            if (t != null) t.color = has ? Cream : Dim;
         }
 
         void OnNewGame()
@@ -437,7 +472,7 @@ namespace NinetyMinutes.UI
                 var empty = captured.unixTimestamp <= 0;
                 if (_slotsAreLoad && empty) continue;
 
-                UiFactory.Button(list, captured.slotId, label, new Vector2(0, y), new Vector2(700, 56), () =>
+                UiFactory.GhostButton(list, captured.slotId, label, new Vector2(0, y), new Vector2(700, 56), () =>
                 {
                     if (_slotsAreLoad)
                         ConfirmLoad(captured);

@@ -1,5 +1,4 @@
 using System.IO;
-using NinetyMinutes.World;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -19,10 +18,12 @@ namespace NinetyMinutes.EditorTools
             {
                 if (Application.isPlaying) return;
                 if (File.Exists(PersistentPath) && File.Exists(LockerPath) && File.Exists(StreetPath)
-                    && HasContent(LockerPath))
+                    && HasContent(LockerPath)
+                    && File.Exists("Assets/Resources/Prefabs/Characters/Player.prefab"))
                     return;
                 try
                 {
+                    BakePrefabs.Bake();
                     Bake();
                 }
                 catch (System.Exception e)
@@ -44,9 +45,10 @@ namespace NinetyMinutes.EditorTools
             var prev = EditorSceneManager.GetActiveScene();
             try
             {
-                BakeOne(PersistentPath, WorldSceneFactory.BuildPersistent);
-                BakeOne(LockerPath, WorldSceneFactory.BuildLocker);
-                BakeOne(StreetPath, WorldSceneFactory.BuildStreet);
+                BakePrefabs.Bake();
+                BakeOneFromPrefab(PersistentPath, "Assets/Resources/Prefabs/World/World_Persistent.prefab");
+                BakeOneFromPrefab(LockerPath, "Assets/Resources/Prefabs/Locations/Loc_Locker.prefab");
+                BakeOneFromPrefab(StreetPath, "Assets/Resources/Prefabs/Locations/Loc_Street.prefab");
                 EnsureBuildSettings();
                 AssetDatabase.Refresh();
                 Debug.Log("[90 минут] World scenes baked: World_Persistent, Loc_Locker, Loc_Street.");
@@ -65,16 +67,20 @@ namespace NinetyMinutes.EditorTools
             return text.Contains("LocationScene") || text.Contains("loc_locker") || text.Contains("World_Persistent");
         }
 
-        static void BakeOne(string path, System.Func<GameObject> build)
+        static void BakeOneFromPrefab(string scenePath, string prefabPath)
         {
-            var dir = Path.GetDirectoryName(path);
+            var dir = Path.GetDirectoryName(scenePath);
             if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
                 Directory.CreateDirectory(dir);
 
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Additive);
             EditorSceneManager.SetActiveScene(scene);
-            build();
-            EditorSceneManager.SaveScene(scene, path);
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+            if (prefab != null)
+                PrefabUtility.InstantiatePrefab(prefab);
+            else
+                Debug.LogWarning("[90 минут] Missing prefab for scene: " + prefabPath);
+            EditorSceneManager.SaveScene(scene, scenePath);
             EditorSceneManager.CloseScene(scene, true);
         }
 

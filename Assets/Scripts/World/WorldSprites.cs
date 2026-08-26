@@ -11,8 +11,10 @@ namespace NinetyMinutes.World
         static Material _unlitSrc;
         static Material _cutoutSrc;
 
-        public static readonly Color KitDark = new Color(0.13f, 0.13f, 0.15f);
-        public static readonly Color KitYellow = new Color(0.82f, 0.68f, 0.22f);
+        public static readonly Color KitDark = new Color(0.16f, 0.15f, 0.14f);
+        public static readonly Color KitYellow = new Color(0.78f, 0.58f, 0.22f);
+        public static readonly Color Ochre = new Color(0.62f, 0.48f, 0.28f);
+        public static readonly Color TealShadow = new Color(0.28f, 0.36f, 0.38f);
 
         static Material LitSrc
         {
@@ -43,8 +45,8 @@ namespace NinetyMinutes.World
             get
             {
                 if (_cutoutSrc != null) return _cutoutSrc;
-                var sh = Shader.Find("Unlit/Transparent")
-                         ?? Shader.Find("Sprites/Default")
+                var sh = Shader.Find("Sprites/Default")
+                         ?? Shader.Find("Unlit/Transparent")
                          ?? Shader.Find("Unlit/Texture");
                 _cutoutSrc = new Material(sh) { hideFlags = HideFlags.HideAndDontSave };
                 return _cutoutSrc;
@@ -61,7 +63,12 @@ namespace NinetyMinutes.World
         public static Material Textured(Texture tex, Color? tint = null)
         {
             var m = new Material(UnlitSrc);
-            if (tex != null) m.mainTexture = tex;
+            if (tex != null)
+            {
+                tex.wrapMode = TextureWrapMode.Clamp;
+                tex.filterMode = FilterMode.Bilinear;
+                m.mainTexture = tex;
+            }
             var c = tint ?? Color.white;
             m.color = c;
             if (m.HasProperty("_Color")) m.SetColor("_Color", c);
@@ -110,10 +117,25 @@ namespace NinetyMinutes.World
 
         public static GameObject Floor(string name, float width, float depth, Transform parent, Color color, Texture tex = null)
         {
-            var go = Box(name, new Vector3(width, 0.16f, depth), color, parent);
-            go.transform.localPosition = new Vector3(0f, -0.08f, 0f);
-            if (tex != null)
-                go.GetComponent<MeshRenderer>().sharedMaterial = Textured(tex, Color.white);
+            var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            go.name = name;
+            go.transform.SetParent(parent, false);
+            go.transform.localRotation = Quaternion.Euler(90f, 180f, 0f);
+            go.transform.localPosition = new Vector3(0f, 0.01f, 0f);
+            go.transform.localScale = new Vector3(width, depth, 1f);
+            StripCollider(go);
+            var mr = go.GetComponent<MeshRenderer>();
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            mr.receiveShadows = true;
+            var mat = tex != null ? Textured(tex, Color.white) : Lit(color);
+            mat.renderQueue = 1990;
+            mr.sharedMaterial = mat;
+
+            var colGo = new GameObject("FloorCollider");
+            colGo.transform.SetParent(parent, false);
+            colGo.transform.localPosition = new Vector3(0f, -0.06f, 0f);
+            var box = colGo.AddComponent<BoxCollider>();
+            box.size = new Vector3(width, 0.1f, depth);
             return go;
         }
 
@@ -169,32 +191,41 @@ namespace NinetyMinutes.World
 
         public static GameObject PlayerVisual(string name, Sprite sprite, Transform parent)
         {
+            return PaintedFigure(name, sprite, parent, 1.9f);
+        }
+
+        public static GameObject PaintedFigure(string name, Sprite sprite, Transform parent, float height = 1.9f)
+        {
             var root = new GameObject(name);
             root.transform.SetParent(parent, false);
 
-            var body = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            body.name = "Body";
-            body.transform.SetParent(root.transform, false);
-            body.transform.localPosition = new Vector3(0f, 0.9f, 0f);
-            body.transform.localScale = new Vector3(0.5f, 0.9f, 0.5f);
-            body.GetComponent<MeshRenderer>().sharedMaterial = Lit(KitDark);
-            StripCollider(body);
-
-            var stripe = Box("Stripe", new Vector3(0.54f, 0.14f, 0.54f), KitYellow, root.transform, false);
-            stripe.transform.localPosition = new Vector3(0f, 1.35f, 0f);
+            var shadow = Cylinder("Shadow", new Vector3(0.55f, 0.02f, 0.55f), new Color(0.08f, 0.07f, 0.06f, 0.55f), root.transform, false);
+            shadow.transform.localPosition = new Vector3(0f, 0.02f, 0f);
 
             var card = GameObject.CreatePrimitive(PrimitiveType.Quad);
-            card.name = "Sprite";
+            card.name = "Paint";
             card.transform.SetParent(root.transform, false);
             StripCollider(card);
-            card.transform.localPosition = new Vector3(0f, 1.05f, 0.32f);
-            card.transform.localScale = new Vector3(1.05f, 1.7f, 1f);
-            var mr = card.GetComponent<MeshRenderer>();
+            var aspect = 0.55f;
             if (sprite != null && sprite.texture != null)
-                mr.sharedMaterial = Cutout(sprite.texture);
+            {
+                aspect = (float)sprite.texture.width / Mathf.Max(1, sprite.texture.height);
+                card.GetComponent<MeshRenderer>().sharedMaterial = Cutout(sprite.texture);
+            }
             else
-                mr.sharedMaterial = Lit(KitYellow);
+            {
+                card.GetComponent<MeshRenderer>().sharedMaterial = Lit(KitYellow);
+            }
+
+            var w = height * Mathf.Clamp(aspect, 0.38f, 0.72f);
+            card.transform.localScale = new Vector3(w, height, 1f);
+            card.transform.localPosition = new Vector3(0f, height * 0.5f, 0f);
             card.AddComponent<BillboardFacing>();
+
+            var trigger = root.AddComponent<BoxCollider>();
+            trigger.isTrigger = true;
+            trigger.center = new Vector3(0f, height * 0.5f, 0f);
+            trigger.size = new Vector3(0.7f, height, 0.55f);
             return root;
         }
     }

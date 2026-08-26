@@ -155,6 +155,95 @@ namespace NinetyMinutes.UI
             return btn;
         }
 
+        public static Image FullImage(Transform parent, string name, Sprite sprite, Color color)
+        {
+            var img = Panel(parent, name, color);
+            if (sprite != null)
+            {
+                img.sprite = sprite;
+                img.color = Color.white;
+                img.preserveAspect = false;
+                img.type = Image.Type.Simple;
+            }
+
+            return img;
+        }
+
+        public static RectTransform LeftColumn(Transform parent, string name, float width, float padLeft)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = new Vector2(0f, 0f);
+            rt.anchorMax = new Vector2(0f, 1f);
+            rt.pivot = new Vector2(0f, 0.5f);
+            rt.anchoredPosition = new Vector2(padLeft, 0f);
+            rt.sizeDelta = new Vector2(width, 0f);
+            return rt;
+        }
+
+        public static RectTransform PaperCard(Transform parent, string name, Vector2 pos, Vector2 size)
+        {
+            var rt = Box(parent, name, pos, size, new Color(0.10f, 0.09f, 0.07f, 0.94f));
+            var outline = rt.gameObject.AddComponent<Outline>();
+            outline.effectColor = new Color(0.78f, 0.58f, 0.22f, 0.55f);
+            outline.effectDistance = new Vector2(1, -1);
+            Hairline(rt, "Rule", new Vector2(0f, size.y * 0.5f - 8f), new Vector2(size.x - 48f, 3f),
+                new Color(0.78f, 0.58f, 0.22f, 0.9f));
+            return rt;
+        }
+
+        public static Image Hairline(Transform parent, string name, Vector2 pos, Vector2 size, Color color)
+        {
+            var rt = Box(parent, name, pos, size, color);
+            return rt.GetComponent<Image>();
+        }
+
+        public static Text Headline(Transform parent, string name, string text, int fontSize, Vector2 pos, Vector2 size, Color color, TextAnchor anchor)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(Text));
+            go.transform.SetParent(parent, false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 1f);
+            rt.pivot = new Vector2(0.5f, 1f);
+            rt.anchoredPosition = pos;
+            rt.sizeDelta = size;
+            return ConfigureText(go.GetComponent<Text>(), text, fontSize, anchor, color);
+        }
+
+        public static Button GhostButton(Transform parent, string name, string label, Vector2 pos, Vector2 size, UnityEngine.Events.UnityAction onClick)
+        {
+            var rt = Box(parent, name, pos, size, new Color(0.08f, 0.07f, 0.05f, 0.28f));
+            var img = rt.GetComponent<Image>();
+            img.raycastTarget = true;
+
+            var bar = Box(rt, "Accent", new Vector2(-size.x * 0.5f + 4f, 0f), new Vector2(6f, size.y - 10f),
+                new Color(0.78f, 0.58f, 0.22f, 1f));
+            var accent = bar.GetComponent<Image>();
+            accent.enabled = false;
+            accent.raycastTarget = false;
+
+            var text = Label(rt, "Label", label, 28, TextAnchor.MiddleLeft, new Color(0.96f, 0.93f, 0.86f));
+            text.rectTransform.offsetMin = new Vector2(28, 4);
+            text.rectTransform.offsetMax = new Vector2(-16, -4);
+
+            var btn = rt.gameObject.AddComponent<Button>();
+            var colors = btn.colors;
+            colors.normalColor = new Color(1f, 1f, 1f, 0.15f);
+            colors.highlightedColor = new Color(1f, 0.92f, 0.7f, 0.28f);
+            colors.pressedColor = new Color(0.78f, 0.58f, 0.22f, 0.35f);
+            colors.disabledColor = new Color(0.4f, 0.4f, 0.38f, 0.2f);
+            colors.fadeDuration = 0.08f;
+            btn.colors = colors;
+            btn.targetGraphic = img;
+            if (onClick != null) btn.onClick.AddListener(onClick);
+
+            var style = rt.gameObject.AddComponent<MenuButtonStyle>();
+            style.Label = text;
+            style.Accent = accent;
+            return btn;
+        }
+
         public static void Stretch(RectTransform rt)
         {
             rt.anchorMin = Vector2.zero;

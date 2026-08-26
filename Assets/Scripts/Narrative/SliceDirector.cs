@@ -202,7 +202,7 @@ namespace NinetyMinutes.Narrative
             }
         }
 
-        void EnterStreetLife()
+        public void EnterStreetLife()
         {
             Phase = SlicePhase.StreetLife;
             ApplyActMeta();

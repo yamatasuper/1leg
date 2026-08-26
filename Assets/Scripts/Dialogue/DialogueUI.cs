@@ -9,6 +9,9 @@ namespace NinetyMinutes.Dialogue
     {
         public static DialogueUI Instance { get; private set; }
 
+        static readonly Color Cream = new Color(0.96f, 0.93f, 0.86f, 1f);
+        static readonly Color Mustard = new Color(0.78f, 0.58f, 0.22f, 1f);
+
         GameObject _root;
         Text _speaker;
         Text _line;
@@ -40,6 +43,15 @@ namespace NinetyMinutes.Dialogue
             DialogueRunner.Instance.NodeChanged -= Refresh;
         }
 
+        void Update()
+        {
+            if (_root == null || !_root.activeSelf) return;
+            if (DialogueRunner.Instance == null || !DialogueRunner.Instance.IsOpen) return;
+            if (_continueBtn != null && _continueBtn.gameObject.activeSelf
+                && (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return)))
+                DialogueRunner.Instance.ContinueLinear();
+        }
+
         void TryBind()
         {
             if (_bound || DialogueRunner.Instance == null) return;
@@ -53,56 +65,46 @@ namespace NinetyMinutes.Dialogue
         {
             var canvas = UiFactory.CreateCanvas("DialogueCanvas", 250);
             DontDestroyOnLoad(canvas.gameObject);
-            _root = UiFactory.Panel(canvas.transform, "DialogueRoot", new Color(0f, 0f, 0f, 0.45f)).gameObject;
+            _root = UiFactory.Panel(canvas.transform, "DialogueRoot", new Color(0.05f, 0.04f, 0.03f, 0.28f)).gameObject;
 
-            var portraitRt = UiFactory.Box(_root.transform, "Portrait", new Vector2(-620, -200), new Vector2(280, 280),
-                new Color(0.05f, 0.06f, 0.07f, 0.95f));
+            var card = UiFactory.PaperCard(_root.transform, "Card", new Vector2(0f, -268f), new Vector2(1520f, 420f));
+
+            var portraitRt = UiFactory.Box(card, "Portrait", new Vector2(-600f, 16f), new Vector2(260f, 300f),
+                new Color(0.08f, 0.07f, 0.06f, 1f));
             _portrait = portraitRt.GetComponent<Image>();
             _portrait.preserveAspect = true;
-            var pOutline = portraitRt.gameObject.AddComponent<Outline>();
-            pOutline.effectColor = new Color(0.7f, 0.75f, 0.55f, 0.7f);
-            pOutline.effectDistance = new Vector2(2, -2);
+            _portrait.raycastTarget = false;
 
-            var box = UiFactory.Box(_root.transform, "Box", new Vector2(80, -280), new Vector2(1000, 360),
-                new Color(0.08f, 0.1f, 0.12f, 0.96f));
-            var outline = box.gameObject.AddComponent<Outline>();
-            outline.effectColor = new Color(0.9f, 0.92f, 0.4f, 0.8f);
-            outline.effectDistance = new Vector2(2, -2);
-
-            _speaker = UiFactory.Title(box, "Speaker", "", 28, new Vector2(0, -16), new Color(0.95f, 0.92f, 0.35f));
-            _speaker.alignment = TextAnchor.UpperLeft;
-            _speaker.rectTransform.anchorMin = _speaker.rectTransform.anchorMax = new Vector2(0f, 1f);
-            _speaker.rectTransform.pivot = new Vector2(0f, 1f);
-            _speaker.rectTransform.anchoredPosition = new Vector2(28, -18);
-            _speaker.rectTransform.sizeDelta = new Vector2(900, 40);
+            _speaker = UiFactory.Headline(card, "Speaker", "", 26, new Vector2(80f, -22f), new Vector2(860f, 40f), Mustard,
+                TextAnchor.UpperLeft);
+            _speaker.rectTransform.anchorMin = _speaker.rectTransform.anchorMax = new Vector2(0.5f, 1f);
 
             var lineGo = new GameObject("Line", typeof(RectTransform), typeof(Text));
-            lineGo.transform.SetParent(box, false);
+            lineGo.transform.SetParent(card, false);
             var lrt = lineGo.GetComponent<RectTransform>();
-            lrt.anchorMin = new Vector2(0, 0.42f);
-            lrt.anchorMax = new Vector2(1, 1);
-            lrt.offsetMin = new Vector2(28, 0);
-            lrt.offsetMax = new Vector2(-28, -60);
+            lrt.anchorMin = new Vector2(0.22f, 0.38f);
+            lrt.anchorMax = new Vector2(0.96f, 0.88f);
+            lrt.offsetMin = Vector2.zero;
+            lrt.offsetMax = Vector2.zero;
             _line = lineGo.GetComponent<Text>();
             _line.font = UiFactory.DefaultFont;
             _line.fontSize = 26;
-            _line.color = Color.white;
+            _line.color = Cream;
             _line.alignment = TextAnchor.UpperLeft;
             _line.horizontalOverflow = HorizontalWrapMode.Wrap;
             _line.verticalOverflow = VerticalWrapMode.Overflow;
             _line.raycastTarget = false;
 
             var choicesGo = new GameObject("Choices", typeof(RectTransform));
-            choicesGo.transform.SetParent(box, false);
+            choicesGo.transform.SetParent(card, false);
             _choices = choicesGo.transform;
             var crt = choicesGo.GetComponent<RectTransform>();
-            crt.anchorMin = new Vector2(0.5f, 0f);
-            crt.anchorMax = new Vector2(0.5f, 0f);
-            crt.pivot = new Vector2(0.5f, 0f);
-            crt.anchoredPosition = new Vector2(0, 16);
-            crt.sizeDelta = new Vector2(940, 190);
+            crt.anchorMin = new Vector2(0.22f, 0f);
+            crt.anchorMax = new Vector2(0.96f, 0.4f);
+            crt.offsetMin = new Vector2(0f, 16f);
+            crt.offsetMax = Vector2.zero;
 
-            _continueBtn = UiFactory.Button(box, "Continue", "Далее", new Vector2(380, -140), new Vector2(220, 48),
+            _continueBtn = UiFactory.GhostButton(card, "Continue", "Далее  ↵", new Vector2(560f, -156f), new Vector2(280f, 52f),
                 () => DialogueRunner.Instance?.ContinueLinear());
         }
 
@@ -123,14 +125,14 @@ namespace NinetyMinutes.Dialogue
             var node = DialogueRunner.Instance?.ActiveNode;
             if (node == null || _root == null) return;
 
-            _speaker.text = node.Speaker ?? "";
+            _speaker.text = string.IsNullOrEmpty(node.Speaker) ? "Бардин" : node.Speaker;
             _line.text = node.Line ?? "";
 
             var portrait = ArtCatalog.PortraitForSpeaker(node.Speaker);
             if (_portrait != null)
             {
                 _portrait.sprite = portrait;
-                _portrait.color = portrait != null ? Color.white : new Color(0.15f, 0.16f, 0.18f, 1f);
+                _portrait.color = portrait != null ? Color.white : new Color(0.12f, 0.11f, 0.1f, 1f);
                 _portrait.gameObject.SetActive(true);
             }
 
@@ -142,13 +144,13 @@ namespace NinetyMinutes.Dialogue
 
             if (!hasChoices) return;
 
-            float y = 70;
+            float y = 48f;
             foreach (var choice in node.Choices)
             {
                 var captured = choice;
-                UiFactory.Button(_choices, choice.Id, choice.Text, new Vector2(0, y), new Vector2(920, 50),
+                UiFactory.GhostButton(_choices, choice.Id, choice.Text, new Vector2(0f, y), new Vector2(1040f, 48f),
                     () => DialogueRunner.Instance.Choose(captured));
-                y -= 58;
+                y -= 54f;
             }
         }
     }

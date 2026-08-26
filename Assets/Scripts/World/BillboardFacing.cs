@@ -8,10 +8,9 @@ namespace NinetyMinutes.World
         {
             var cam = Camera.main;
             if (cam == null) return;
-            var target = cam.transform.position;
-            target.y = transform.position.y;
-            if ((target - transform.position).sqrMagnitude < 0.0001f) return;
-            transform.LookAt(target);
+            var toCam = cam.transform.position - transform.position;
+            if (toCam.sqrMagnitude < 0.0001f) return;
+            transform.rotation = Quaternion.LookRotation(toCam.normalized, cam.transform.up);
         }
     }
 }

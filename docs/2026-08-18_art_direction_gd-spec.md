@@ -16,9 +16,10 @@
 - История изменений:
   - 2026-08-18 — адаптация исходного арт-документа под работу с ИИ
   - 2026-08-25 — стиль-лок: реализм в seinen-манге; карта и схема стадиона — эталон; лица не shonen; скромный клуб ≠ грязь и руина
+  - 2026-08-25b — локации и персонажи: живописный Disco Elysium (масло, охра/teal), без грязи «ради бедности»; персонажи — painted figures + prefabs
 
 ## 1. Саммари
-Единый визуальный мир Прибрежья: **реализм в аниме/манга-стиле**, как подробный архитектурный фон seinen. Сюжет тяжёлый — картинка нет. Скромный провинциальный стадион и скромная команда выглядят **ухоженными и живыми**, не руиной и не помойкой. ИИ можно использовать только с обязательным human pass (`art_pipeline`). Матч в игре — комикс-панели / иллюстрации + Ken Burns, не FIFA-рендер.
+Единый визуальный мир Прибрежья: **живопись Disco Elysium** (масло, охра, teal, усталые взрослые лица) внутри 3D-диорамы. Карты города/стадиона остаются графическими схемами. Сюжет тяжёлый — картинка не помойка. Скромный стадион и скромная команда **живые и ухоженные**. Prefab’ы персонажей и локаций — `Assets/Resources/Prefabs/`.
 
 ## 2. AI contract (читать перед генерацией)
 
@@ -53,15 +54,15 @@
 
 Пайплайн 12 августа (human pass, Ken Burns, запрет as-is, cut order) — техника. **Палитра, персонажи, локации, обложка, prompt prefix — отсюда.** Если старый prefix спорит с новым — новый.
 
-**Стиль:** реализм пропорций и архитектуры + линия seinen-манги. Тонкий лайнер, лёгкий штрих и stippling, как на карте Прибрежья и схеме «Торпедо». Не FIFA, не фото, не чиби, не «грязный пост-апок».
+**Стиль:** Disco Elysium / ZA/UM painterly: масляный мазок, приглушённая охра и teal, чуть «некрасивые» взрослые лица, изометрия камеры. Не FIFA, не фото, не чиби, не anime-глаза, не «грязный пост-апок».
 
 **Эталоны (держать рядом при генерации):**
-- карта города: `Assets/Resources/Art/Maps/map_priberezhe_approved.jpg` — главный якорь среды
-- схема стадиона: `Assets/Resources/Art/Maps/map_stadium_approved.jpg` — якорь «Торпедо» и качества линии
-- цвет формы: горчично-жёлтые полосы на тёмной кит; лицо с рефа «жёлтой формы» **не копировать** (там слишком аниме)
-- лица: взрослые реалистичные пропорции, чуть стилизованные глаза, без блёсток и огромных радужек
+- портреты и full-body: `Assets/Resources/Art/Portraits/`, `Art/Characters/sprite_*.png` — живопись DE
+- карта города и схема стадиона — только для географии, не для стиля лиц
+- цвет формы: горчично-охристая полоса на тёмной кит
+- лица: взрослые реалистичные, усталость, без блёсток
 
-**Не эталоны:** Disco Elysium / STALKER / «всё в ржавчине»; слишком тёмные кадры с кляксами туши; shonen-портреты с огромными глазами.
+**Не эталоны:** STALKER / «всё в ржавчине»; shonen-портреты; photoreal FIFA.
 
 **Палитра:**
 - серый — линия, бетон, трибуны, небо (светлое, не уголь)
@@ -82,7 +83,7 @@
 Не менять mid-project без записи в историю.
 
 ```
-clean detailed seinen manga illustration, realistic adult proportions, fine liner architectural linework, light hatching, greyscale with mustard-yellow accents and steel-blue water, modest tidy provincial setting, lived-in not filthy, bright even daylight, no watermark, no extra limbs, no unreadable random text, not photoreal, not FIFA, not chibi, not grimdark
+Disco Elysium oil-painting video game art, painterly brushstrokes, muted ochre and teal palette, realistic tired adult faces, modest tidy provincial football world, lived-in not filthy, no watermark, no extra limbs, no unreadable random text, not photoreal, not FIFA, not anime, not chibi, not grimdark sludge
 ```
 
 Для матч-панелей добавь в конец: `comic panel framing, clear focal action, same world and palette, not manga speedlines overload`.

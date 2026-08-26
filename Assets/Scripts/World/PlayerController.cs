@@ -12,11 +12,14 @@ namespace NinetyMinutes.World
         Rigidbody _rb;
         Vector3 _move;
         public bool InputLocked { get; set; }
+        public bool IsMoving => _move.sqrMagnitude > 0.01f;
 
         void Awake()
         {
             WorldSceneFactory.EnsurePlayerPhysics(gameObject);
             _rb = GetComponent<Rigidbody>();
+            if (GetComponent<WalkFlipbook>() == null)
+                gameObject.AddComponent<WalkFlipbook>();
         }
 
         void Update()
@@ -50,6 +53,8 @@ namespace NinetyMinutes.World
 
             if (Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.Space))
                 TryInteract();
+
+            WorldController.Instance?.SetFocusPrompt(FindNearby()?.Prompt);
         }
 
         void FixedUpdate()
@@ -63,14 +68,22 @@ namespace NinetyMinutes.World
 
         public void Place(Vector2 spawn)
         {
-            transform.position = new Vector3(spawn.x, 0f, spawn.y);
+            var origin = WorldController.Instance != null
+                ? WorldController.Instance.ActiveOrigin
+                : Vector3.zero;
+            transform.position = origin + new Vector3(spawn.x, 0f, spawn.y);
             if (_rb != null) _rb.velocity = Vector3.zero;
         }
 
         void TryInteract()
         {
+            FindNearby()?.Interact(this);
+        }
+
+        Interactable FindNearby()
+        {
             var origin = transform.position + Vector3.up * 0.9f;
-            var hits = Physics.OverlapSphere(origin, 1.35f);
+            var hits = Physics.OverlapSphere(origin, 2.4f, ~0, QueryTriggerInteraction.Collide);
             Interactable best = null;
             var bestDist = float.MaxValue;
             foreach (var h in hits)
@@ -85,7 +98,7 @@ namespace NinetyMinutes.World
                 }
             }
 
-            best?.Interact(this);
+            return best;
         }
     }
 }

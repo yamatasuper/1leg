@@ -21,11 +21,10 @@ namespace NinetyMinutes.Match
         GameObject _root;
         Image _veil;
         Image _page;
-        Image _panelA;
-        Image _panelB;
-        Image _panelC;
+        Image _panel;
         Text _caption;
         Text _flipLabel;
+        PanelStripAnimator _strip;
         string _lastTemplateId;
 
         static readonly Color PageMatch = new Color(0.12f, 0.16f, 0.14f, 1f);
@@ -54,11 +53,11 @@ namespace NinetyMinutes.Match
             _page = UiFactory.Box(_root.transform, "Page", Vector2.zero, new Vector2(1400, 820), PageMatch)
                 .GetComponent<Image>();
 
-            _panelA = MakePanel("P1", new Vector2(-420, 80), new Vector2(360, 420));
-            _panelB = MakePanel("P2", new Vector2(0, 80), new Vector2(360, 420));
-            _panelC = MakePanel("P3", new Vector2(420, 80), new Vector2(360, 420));
+            _panel = MakePanel("Frame", Vector2.zero, new Vector2(1120, 560));
+            _strip = _root.AddComponent<PanelStripAnimator>();
+            _strip.Target = _panel;
 
-            var capBox = UiFactory.Box(_page.transform, "CaptionBox", new Vector2(0, -320), new Vector2(1100, 120),
+            var capBox = UiFactory.Box(_page.transform, "CaptionBox", new Vector2(0, -340), new Vector2(1100, 110),
                 new Color(0.05f, 0.06f, 0.07f, 0.9f));
             _caption = UiFactory.Label(capBox, "Caption", "", 28, TextAnchor.MiddleCenter, new Color(1f, 0.97f, 0.88f));
 
@@ -68,11 +67,10 @@ namespace NinetyMinutes.Match
 
         Image MakePanel(string name, Vector2 pos, Vector2 size)
         {
-            var rt = UiFactory.Box(_page.transform, name, pos, size, new Color(0.25f, 0.28f, 0.3f));
+            var rt = UiFactory.Box(_page.transform, name, pos, size, new Color(0.12f, 0.14f, 0.16f));
             var outline = rt.gameObject.AddComponent<Outline>();
             outline.effectColor = new Color(0.7f, 0.75f, 0.55f, 0.7f);
             outline.effectDistance = new Vector2(2, -2);
-            UiFactory.Label(rt, "Mark", name, 22, TextAnchor.UpperLeft, new Color(1, 1, 1, 0.35f));
             return rt.GetComponent<Image>();
         }
 
@@ -126,9 +124,7 @@ namespace NinetyMinutes.Match
             MatchFrameUI.Instance?.Show();
             MatchFrameUI.Instance?.Refresh();
 
-            SetPanelArt(_panelA, ArtCatalog.MatchAction);
-            SetPanelArt(_panelB, ArtCatalog.LocationStreet);
-            SetPanelArt(_panelC, ArtCatalog.MatchAction);
+            _strip?.Play(ArtCatalog.MatchSequence(), 0.22f);
             _caption.text = "Западная трибуна закрыта. Река за воротами не спрашивает.";
             yield return PanelHold(3.5f);
             _caption.text = "Иногда матч начинается раньше свистка.";
@@ -137,6 +133,7 @@ namespace NinetyMinutes.Match
             yield return PanelHold(3f);
 
             yield return FlipOut();
+            _strip?.Stop();
             MatchFrameUI.Instance?.Hide();
             _root.SetActive(false);
 
@@ -158,13 +155,12 @@ namespace NinetyMinutes.Match
             MatchFrameUI.Instance?.Refresh();
             ChoiceScoreBridge.Instance?.SetMinute(90);
 
-            SetPanelArt(_panelA, ArtCatalog.MatchAction);
-            SetPanelArt(_panelB, ArtCatalog.MatchGoal);
-            SetPanelArt(_panelC, ArtCatalog.PortraitBardin);
+            _strip?.Play(ArtCatalog.MatchSequence(), 0.2f);
             _caption.text = MatchCaptions.FinalWhistle;
             yield return PanelHold(5f);
 
             yield return FlipOut();
+            _strip?.Stop();
             MatchFrameUI.Instance?.Hide();
             _root.SetActive(false);
 
@@ -210,7 +206,7 @@ namespace NinetyMinutes.Match
 
             MatchFrameUI.Instance?.PulseScore();
             _caption.text = CaptionFor(primary, 1);
-            TintPanelsForOutcome(primary);
+            TintFrame(primary);
             yield return PanelHold(totalSec * 0.36f);
 
             _caption.text = CaptionFor(primary, 2);
@@ -218,7 +214,7 @@ namespace NinetyMinutes.Match
 
             // Flip out to past
             yield return FlipOut();
-
+            _strip?.Stop();
             MatchFrameUI.Instance?.Hide();
             _root.SetActive(false);
 
@@ -240,11 +236,8 @@ namespace NinetyMinutes.Match
 
         void ApplyPanels(string templateId, OutcomeType primary)
         {
-            var action = ArtCatalog.MatchAction;
-            var goal = ArtCatalog.MatchGoal;
-            SetPanelArt(_panelA, action);
-            SetPanelArt(_panelB, action);
-            SetPanelArt(_panelC, primary == OutcomeType.GoalFor ? goal : action);
+            _lastTemplateId = templateId;
+            _strip?.Play(ArtCatalog.MatchSequence(), primary == OutcomeType.GoalFor ? 0.14f : 0.18f);
             _page.color = PageMatch;
         }
 
@@ -265,16 +258,15 @@ namespace NinetyMinutes.Match
             }
         }
 
-        void TintPanelsForOutcome(OutcomeType primary)
+        void TintFrame(OutcomeType primary)
         {
-            // Keep photo panels; light punch via color multiply
-            if (_panelC == null) return;
+            if (_panel == null) return;
             if (primary == OutcomeType.GoalFor)
-                _panelC.color = new Color(1f, 1.05f, 0.9f);
+                _panel.color = new Color(1f, 1.05f, 0.9f);
             else if (primary == OutcomeType.GoalAgainst)
-                _panelC.color = new Color(1f, 0.75f, 0.75f);
+                _panel.color = new Color(1f, 0.75f, 0.75f);
             else
-                _panelC.color = Color.white;
+                _panel.color = Color.white;
         }
 
         static string CaptionFor(OutcomeType type, int stage)

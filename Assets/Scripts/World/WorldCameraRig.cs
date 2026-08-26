@@ -5,9 +5,9 @@ namespace NinetyMinutes.World
     public sealed class WorldCameraRig : MonoBehaviour
     {
         public Transform Target;
-        public float Distance = 8.4f;
-        public float Height = 5.6f;
-        public float LookHeight = 1.4f;
+        public float Distance = 11.2f;
+        public float Height = 9.4f;
+        public float LookHeight = 0.55f;
         public float Yaw;
         public bool InputEnabled = true;
 

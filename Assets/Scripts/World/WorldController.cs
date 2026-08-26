@@ -3,7 +3,6 @@ using NinetyMinutes.Dialogue;
 using NinetyMinutes.Narrative;
 using NinetyMinutes.UI;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 namespace NinetyMinutes.World
@@ -22,6 +21,7 @@ namespace NinetyMinutes.World
         Light _lockerLamp;
         Text _hudHint;
         GameObject _hudRoot;
+        string _focusPrompt;
 
         GameObject _npcCoachLocker;
         GameObject _npcSkipTraining;
@@ -30,6 +30,15 @@ namespace NinetyMinutes.World
         GameObject _npcSelfThought;
         DoorInteractable _doorToStreet;
         DoorInteractable _doorToLocker;
+
+        public Vector3 ActiveOrigin
+        {
+            get
+            {
+                var loc = CurrentLocationId == "loc_locker" ? _locker : _street;
+                return loc != null ? loc.transform.position : Vector3.zero;
+            }
+        }
 
         public string CurrentLocationId { get; private set; } = "loc_locker";
         public bool IsActive => _persistentRoot != null && _persistentRoot.activeSelf;
@@ -116,16 +125,9 @@ namespace NinetyMinutes.World
 
             if (_doorToStreet != null)
             {
-                if (phase == SlicePhase.Training)
-                {
-                    _doorToStreet.RequireFlag = "training_done";
-                    _doorToStreet.LockedLine = "Сначала тренировка — или сознательный отказ от неё.";
-                }
-                else
-                {
-                    _doorToStreet.RequireFlag = null;
-                    _doorToStreet.LockedLine = null;
-                }
+                _doorToStreet.RequireFlag = null;
+                _doorToStreet.LockedLine = null;
+                _doorToStreet.Prompt = "E — выйти на бровку";
             }
 
             if (_doorToLocker != null)
@@ -145,11 +147,13 @@ namespace NinetyMinutes.World
 
         void EnsureWorldLoaded()
         {
-            if (_persistentRoot != null) return;
+            if (_persistentRoot != null && _locker != null && _street != null) return;
 
-            LoadOrBuild(WorldSceneFactory.PersistentScene, WorldSceneFactory.BuildPersistent);
-            LoadOrBuild(WorldSceneFactory.LockerScene, WorldSceneFactory.BuildLocker);
-            LoadOrBuild(WorldSceneFactory.StreetScene, WorldSceneFactory.BuildStreet);
+            // Additive SceneManager.LoadScene only completes at the end of the frame, so the
+            // world is spawned straight from the location prefabs to keep binding synchronous.
+            if (FindNamed("World_Persistent") == null) WorldSceneFactory.BuildPersistent();
+            if (FindLocation("loc_locker") == null) WorldSceneFactory.BuildLocker();
+            if (FindLocation("loc_street") == null) WorldSceneFactory.BuildStreet();
 
             BindSceneObjects();
             BuildHud();
@@ -158,55 +162,55 @@ namespace NinetyMinutes.World
             if (_street != null) _street.SetActive(false);
         }
 
-        static void LoadOrBuild(string sceneName, System.Func<GameObject> fallback)
-        {
-            if (SceneManager.GetSceneByName(sceneName).isLoaded) return;
-
-            var inBuild = false;
-            for (var i = 0; i < SceneManager.sceneCountInBuildSettings; i++)
-            {
-                var path = SceneUtility.GetScenePathByBuildIndex(i);
-                if (string.IsNullOrEmpty(path)) continue;
-                var name = System.IO.Path.GetFileNameWithoutExtension(path);
-                if (name == sceneName)
-                {
-                    inBuild = true;
-                    break;
-                }
-            }
-
-            if (inBuild)
-            {
-                SceneManager.LoadScene(sceneName, LoadSceneMode.Additive);
-                return;
-            }
-
-            Debug.LogWarning($"[90 минут] Scene '{sceneName}' not in Build Settings — building in memory. Menu: 90 минут / Bake World Scenes.");
-            fallback();
-        }
-
         void BindSceneObjects()
         {
-            _persistentRoot = GameObject.Find("World_Persistent");
-            _locker = GameObject.Find("loc_locker");
-            _street = GameObject.Find("loc_street");
+            _persistentRoot = FindNamed("World_Persistent");
+            _locker = FindLocation("loc_locker");
+            _street = FindLocation("loc_street");
 
-            if (_persistentRoot != null)
+            var rig = Object.FindObjectOfType<WorldCameraRig>(true);
+            if (rig != null)
             {
-                _sun = FindChild<Light>(_persistentRoot.transform, "Sun");
-                var camGo = FindChild(_persistentRoot.transform, "WorldCamera");
+                _camRig = rig;
+                _worldCam = rig.GetComponent<Camera>();
+                if (_persistentRoot == null)
+                    _persistentRoot = rig.transform.root.gameObject;
+            }
+
+            if (_worldCam == null)
+            {
+                var camGo = FindNamed("WorldCamera");
                 if (camGo != null)
                 {
                     _worldCam = camGo.GetComponent<Camera>();
-                    _camRig = camGo.GetComponent<WorldCameraRig>();
+                    _camRig = camGo.GetComponent<WorldCameraRig>() ?? camGo.AddComponent<WorldCameraRig>();
                 }
+            }
 
-                var playerGo = FindChild(_persistentRoot.transform, "Player");
-                if (playerGo != null)
+            if (_worldCam == null)
+                CreateEmergencyCamera();
+
+            WorldGeometryFix.Stabilize(_locker, _street);
+            WorldGeometryFix.OpenExits(_locker, _street);
+
+            if (_sun == null && _persistentRoot != null)
+                _sun = FindChild<Light>(_persistentRoot.transform, "Sun");
+
+            var playerGo = Object.FindObjectOfType<PlayerController>(true);
+            if (playerGo != null)
+            {
+                _player = playerGo;
+                if (_player.CameraRig == null) _player.CameraRig = _camRig;
+                if (_camRig != null) _camRig.Target = _player.transform;
+            }
+            else if (_persistentRoot != null)
+            {
+                var p = FindChild(_persistentRoot.transform, "Player");
+                if (p != null)
                 {
-                    _player = playerGo.GetComponent<PlayerController>();
-                    if (_player != null) _player.CameraRig = _camRig;
-                    if (_camRig != null) _camRig.Target = playerGo.transform;
+                    _player = p.GetComponent<PlayerController>() ?? p.AddComponent<PlayerController>();
+                    _player.CameraRig = _camRig;
+                    if (_camRig != null) _camRig.Target = p.transform;
                 }
             }
 
@@ -229,6 +233,60 @@ namespace NinetyMinutes.World
             }
 
             BindNamedNpcs();
+            CharacterVisualFix.Dress(_player, _locker, _street);
+        }
+
+        void CreateEmergencyCamera()
+        {
+            var camGo = new GameObject("WorldCamera");
+            if (_persistentRoot != null)
+                camGo.transform.SetParent(_persistentRoot.transform, false);
+            camGo.tag = "MainCamera";
+            _worldCam = camGo.AddComponent<Camera>();
+            _worldCam.orthographic = false;
+            _worldCam.fieldOfView = 55f;
+            _worldCam.nearClipPlane = 0.4f;
+            _worldCam.farClipPlane = 70f;
+            _worldCam.clearFlags = CameraClearFlags.SolidColor;
+            _worldCam.backgroundColor = new Color(0.42f, 0.4f, 0.34f);
+            _worldCam.depth = 20;
+            _worldCam.targetDisplay = 0;
+            if (camGo.GetComponent<AudioListener>() == null)
+                camGo.AddComponent<AudioListener>();
+            _camRig = camGo.AddComponent<WorldCameraRig>();
+            if (_persistentRoot == null)
+                Object.DontDestroyOnLoad(camGo);
+        }
+
+        static GameObject FindLocation(string locationId)
+        {
+            var named = FindNamed(locationId);
+            if (named != null) return named;
+            foreach (var loc in Object.FindObjectsOfType<LocationScene>(true))
+            {
+                if (loc != null && loc.LocationId == locationId)
+                    return loc.gameObject;
+            }
+
+            return null;
+        }
+
+        static GameObject FindNamed(string name)
+        {
+            foreach (var t in Object.FindObjectsOfType<Transform>(true))
+            {
+                if (NamesEqual(t.name, name))
+                    return t.gameObject;
+            }
+
+            return null;
+        }
+
+        static bool NamesEqual(string actual, string expected)
+        {
+            if (string.IsNullOrEmpty(actual) || string.IsNullOrEmpty(expected)) return false;
+            var a = actual.Replace("(Clone)", "").Trim();
+            return string.Equals(a, expected, System.StringComparison.OrdinalIgnoreCase);
         }
 
         void BindNamedNpcs()
@@ -249,7 +307,7 @@ namespace NinetyMinutes.World
         static GameObject FindChild(Transform root, string name)
         {
             if (root == null) return null;
-            if (root.name == name) return root.gameObject;
+            if (NamesEqual(root.name, name)) return root.gameObject;
             foreach (Transform child in root)
             {
                 var found = FindChild(child, name);
@@ -271,28 +329,28 @@ namespace NinetyMinutes.World
             {
                 _sun.intensity = locker ? 0.55f : 1.2f;
                 _sun.color = locker
-                    ? new Color(0.95f, 0.9f, 0.8f)
-                    : new Color(1f, 0.97f, 0.9f);
+                    ? new Color(1f, 0.78f, 0.48f)
+                    : new Color(1f, 0.82f, 0.55f);
             }
 
             if (_worldCam != null)
             {
                 _worldCam.backgroundColor = locker
-                    ? new Color(0.22f, 0.23f, 0.24f)
-                    : new Color(0.58f, 0.66f, 0.72f);
+                    ? new Color(0.28f, 0.24f, 0.18f)
+                    : new Color(0.45f, 0.48f, 0.42f);
             }
 
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.Linear;
             RenderSettings.fogColor = locker
-                ? new Color(0.28f, 0.27f, 0.24f)
-                : new Color(0.62f, 0.7f, 0.76f);
-            RenderSettings.fogStartDistance = locker ? 12f : 16f;
-            RenderSettings.fogEndDistance = locker ? 28f : 48f;
+                ? new Color(0.32f, 0.26f, 0.18f)
+                : new Color(0.48f, 0.5f, 0.42f);
+            RenderSettings.fogStartDistance = locker ? 10f : 14f;
+            RenderSettings.fogEndDistance = locker ? 26f : 44f;
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
             RenderSettings.ambientLight = locker
-                ? new Color(0.42f, 0.4f, 0.36f)
-                : new Color(0.62f, 0.66f, 0.7f);
+                ? new Color(0.38f, 0.34f, 0.28f)
+                : new Color(0.42f, 0.48f, 0.46f);
         }
 
         void BuildHud()
@@ -301,29 +359,44 @@ namespace NinetyMinutes.World
             var canvas = UiFactory.CreateCanvas("WorldHudCanvas", 150);
             DontDestroyOnLoad(canvas.gameObject);
             _hudRoot = canvas.gameObject;
-            var panel = UiFactory.Box(canvas.transform, "HintBox", new Vector2(0, 460), new Vector2(1200, 70),
-                new Color(0.05f, 0.06f, 0.08f, 0.75f));
-            _hudHint = UiFactory.Label(panel, "Hint", "", 22, TextAnchor.MiddleCenter, Color.white);
+            var panel = UiFactory.Box(canvas.transform, "HintBox", new Vector2(0, 470), new Vector2(1280, 78),
+                new Color(0.08f, 0.07f, 0.05f, 0.82f));
+            var outline = panel.gameObject.AddComponent<Outline>();
+            outline.effectColor = new Color(0.78f, 0.58f, 0.22f, 0.45f);
+            outline.effectDistance = new Vector2(1, -1);
+            _hudHint = UiFactory.Label(panel, "Hint", "", 22, TextAnchor.MiddleCenter, new Color(0.96f, 0.93f, 0.86f));
             ShowHud(false);
+        }
+
+        public void SetFocusPrompt(string prompt)
+        {
+            if (_focusPrompt == prompt) return;
+            _focusPrompt = prompt;
+            UpdateHud();
         }
 
         void UpdateHud()
         {
             if (_hudHint == null) return;
             var loc = CurrentLocationId == "loc_locker" ? "Раздевалка «Торпедо»" : "Бровка";
-            var controls = "WASD · ПКМ/Q/Z камера · E · Tab · Esc";
+            var focus = string.IsNullOrEmpty(_focusPrompt) ? "" : $" · {_focusPrompt}";
+            if (SliceDirector.Instance != null && SliceDirector.Instance.Phase == SlicePhase.Training)
+            {
+                _hudHint.text = $"{loc} · тренер или дверь налево (A){focus}";
+                return;
+            }
+
             if (SliceDirector.Instance != null && SliceDirector.Instance.Phase == SlicePhase.StreetLife)
             {
                 var left = 0;
                 foreach (var f in SliceDirector.StreetDialogueFlags)
                     if (!SliceDialogues.Flags.Contains(f)) left++;
-                _hudHint.text = $"{loc} · поговори со всеми ({3 - left}/3) · потом матч · {controls}";
+                _hudHint.text = $"{loc} · поговори со всеми ({3 - left}/3){focus}";
+                return;
             }
-            else
-            {
-                var phase = SliceDirector.Instance != null ? SliceDirector.Instance.Phase.ToString() : "";
-                _hudHint.text = $"{loc} · {phase} · {controls}";
-            }
+
+            var phase = SliceDirector.Instance != null ? SliceDirector.Instance.Phase.ToString() : "";
+            _hudHint.text = $"{loc} · {phase}{focus}";
         }
 
         void ShowHud(bool show)
@@ -334,16 +407,52 @@ namespace NinetyMinutes.World
 
         void EnableWorldCamera(bool on)
         {
-            if (_worldCam != null) _worldCam.enabled = on;
+            if (on)
+            {
+                if (_worldCam != null)
+                {
+                    ActivateHierarchy(_worldCam.gameObject);
+                    _worldCam.enabled = true;
+                }
+
+                if (_worldCam == null || !_worldCam.gameObject.activeInHierarchy)
+                    CreateEmergencyCamera();
+            }
+
+            if (_worldCam != null)
+            {
+                ActivateHierarchy(_worldCam.gameObject);
+                _worldCam.enabled = on;
+                _worldCam.targetTexture = null;
+                _worldCam.targetDisplay = 0;
+                _worldCam.depth = 20;
+                _worldCam.nearClipPlane = Mathf.Max(_worldCam.nearClipPlane, 0.4f);
+                _worldCam.farClipPlane = Mathf.Max(_worldCam.farClipPlane, 70f);
+                if (!_worldCam.CompareTag("MainCamera"))
+                    _worldCam.tag = "MainCamera";
+            }
+
             if (_camRig != null) _camRig.InputEnabled = on;
             if (_sun != null) _sun.enabled = on;
 
-            foreach (var cam in FindObjectsOfType<Camera>())
+            var worldLive = on && _worldCam != null && _worldCam.enabled && _worldCam.gameObject.activeInHierarchy;
+            foreach (var cam in FindObjectsOfType<Camera>(true))
             {
                 if (cam == _worldCam) continue;
-                if (on) cam.enabled = false;
-                else if (cam.GetComponent<AudioListener>() != null || cam.CompareTag("MainCamera"))
+                if (worldLive && cam.targetDisplay == 0 && cam.targetTexture == null)
+                    cam.enabled = false;
+                else if (!on && (cam.CompareTag("MainCamera") || cam.GetComponent<AudioListener>() != null))
                     cam.enabled = true;
+            }
+
+            if (!worldLive && on)
+            {
+                foreach (var cam in FindObjectsOfType<Camera>(true))
+                {
+                    if (cam.targetDisplay != 0 || cam.targetTexture != null) continue;
+                    ActivateHierarchy(cam.gameObject);
+                    cam.enabled = true;
+                }
             }
 
             if (on)
@@ -351,17 +460,32 @@ namespace NinetyMinutes.World
                 ApplyLocationAtmosphere(CurrentLocationId == "loc_locker");
                 if (_worldCam != null)
                 {
-                    foreach (var al in FindObjectsOfType<AudioListener>())
+                    foreach (var al in FindObjectsOfType<AudioListener>(true))
                         al.enabled = al.gameObject == _worldCam.gameObject;
                 }
 
-                if (_camRig != null) _camRig.Snap();
+                if (_camRig != null)
+                {
+                    if (_player != null) _camRig.Target = _player.transform;
+                    _camRig.Snap();
+                }
             }
             else
             {
                 RenderSettings.fog = false;
-                foreach (var al in FindObjectsOfType<AudioListener>())
+                foreach (var al in FindObjectsOfType<AudioListener>(true))
                     al.enabled = true;
+            }
+        }
+
+        static void ActivateHierarchy(GameObject go)
+        {
+            if (go == null) return;
+            var t = go.transform;
+            while (t != null)
+            {
+                if (!t.gameObject.activeSelf) t.gameObject.SetActive(true);
+                t = t.parent;
             }
         }
     }
