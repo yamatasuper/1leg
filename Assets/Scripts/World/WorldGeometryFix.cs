@@ -20,6 +20,60 @@ namespace NinetyMinutes.World
             PaintSurface(locker, "LockerArt", ArtCatalog.Tex(ArtCatalog.LocationLocker), new Color(0.45f, 0.4f, 0.32f));
             PaintSurface(street, "StadiumArt", ArtCatalog.Tex(ArtCatalog.LocationStreet), new Color(0.4f, 0.42f, 0.38f));
             Raise(street, "Sideline", 0.14f);
+            RestoreMaterials(locker);
+            RestoreMaterials(street);
+        }
+
+        /// <summary>
+        /// The factory builds its materials at runtime, so the baked location prefabs store none and
+        /// every prop that is not repainted above would render as nothing.
+        /// </summary>
+        static void RestoreMaterials(GameObject root)
+        {
+            if (root == null) return;
+            foreach (var mr in root.GetComponentsInChildren<MeshRenderer>(true))
+            {
+                if (mr.sharedMaterial != null) continue;
+                if (string.Equals(mr.name, "Shadow", System.StringComparison.OrdinalIgnoreCase)) continue;
+                mr.sharedMaterial = WorldSprites.Lit(PaletteFor(mr.name));
+            }
+        }
+
+        static Color PaletteFor(string name)
+        {
+            switch (name)
+            {
+                case "LockerUnit":
+                case "BenchLegL":
+                case "BenchLegR":
+                    return new Color(0.26f, 0.3f, 0.28f);
+                case "Bench":
+                    return new Color(0.4f, 0.28f, 0.18f);
+                case "WallN":
+                case "WallE":
+                case "WallW_N":
+                case "WallW_S":
+                    return new Color(0.52f, 0.48f, 0.4f);
+                case "CeilingBeam":
+                    return new Color(0.58f, 0.5f, 0.38f);
+                case "Sideline":
+                    return new Color(0.5f, 0.46f, 0.38f);
+                case "Bleacher":
+                    return new Color(0.48f, 0.42f, 0.32f);
+                case "Floodlight":
+                    return WorldSprites.TealShadow;
+                case "Trim":
+                case "Lintel":
+                case "LampHead":
+                    return WorldSprites.KitYellow;
+                case "FrameL":
+                case "FrameR":
+                case "Leaf":
+                case "skip_training":
+                    return new Color(0.37f, 0.29f, 0.18f);
+                default:
+                    return WorldSprites.Ochre;
+            }
         }
 
         public static void OpenExits(GameObject locker, GameObject street)
